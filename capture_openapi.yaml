@@ -1,0 +1,341 @@
+openapi: 3.0.3
+info:
+  title: Project Athena - Capture & Document Ingestion API
+  description: |
+    API specifications for Project Athena's Capture module. 
+    Handles image processing, optical character recognition (OCR) via pluggable engines, 
+    and document CRUD operations within the decentralized personal knowledge brain.
+  version: 1.0.0
+  contact:
+    name: Project Athena Dev Support
+    email: support@project-athena.io
+
+servers:
+  - url: https://api.project-athena.io/v1
+    description: Production API Gateway (v1)
+  - url: http://localhost:8080/v1
+    description: Local Sandbox Development Environment
+
+paths:
+  /captures:
+    post:
+      summary: Upload an image file for OCR extraction and document ingestion
+      description: |
+        Accepts binary image uploads (PNG, JPEG), routes them to the active/selected 
+        OCR processing engine (Google ML Kit, PaddleOCR, Tesseract, or Simulator), 
+        and returns the parsed results including bounding box data.
+      operationId: uploadAndProcessCapture
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Raw image file containing text to extract.
+                engine:
+                  type: string
+                  enum: [GOOGLE_ML_KIT, PADDLE_OCR, TESSERACT, SIMULATOR]
+                  default: GOOGLE_ML_KIT
+                  description: Pluggable OCR engine to execute for characters recognition.
+                language:
+                  type: string
+                  default: en
+                  description: ISO-639-1 code to initialize language-specific Lexicons.
+                confidenceThreshold:
+                  type: number
+                  format: float
+                  minimum: 0.0
+                  maximum: 1.0
+                  default: 0.45
+                  description: Confidence floor below which characters are discarded.
+              required:
+                - image
+      responses:
+        '201':
+          description: Image uploaded and OCR successfully processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrResult'
+        '400':
+          description: Invalid image payload or parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: OCR engine crash or native JNI processing error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /documents:
+    get:
+      summary: Retrieve all ingested documents
+      description: Lists all captured documents saved inside Athena's persistent storage, sorted chronologically.
+      operationId: listDocuments
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter documents by category (e.g. "Whiteboard", "Book Scan").
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: Maximum number of records to return.
+      responses:
+        '200':
+          description: List of documents successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CapturedDocument'
+        '500':
+          description: Database reading failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Manually ingest or create a custom document
+      description: Bypasses the camera scanner flow to directly insert structured notes or texts.
+      operationId: createDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentInput'
+      responses:
+        '201':
+          description: Document successfully stored in persistent index.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapturedDocument'
+        '400':
+          description: Validation failed (empty fields or invalid characters).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /documents/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Unique identifier of the document node.
+
+    get:
+      summary: Get a document by ID
+      description: Returns the full text, AI summary, category, and timestamps of a specific document.
+      operationId: getDocumentById
+      responses:
+        '200':
+          description: Document found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapturedDocument'
+        '404':
+          description: Document not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update an existing document
+      description: Updates the title, raw text body, category or tags of a document.
+      operationId: updateDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentInput'
+      responses:
+        '200':
+          description: Document updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapturedDocument'
+        '400':
+          description: Invalid request payload.
+        '404':
+          description: Document not found.
+
+    delete:
+      summary: Permanently delete a document
+      description: Deletes the document from SQL and removes its embedded chunks from the vector store.
+      operationId: deleteDocument
+      responses:
+        '204':
+          description: Document deleted successfully. No content returned.
+        '404':
+          description: Document not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    OcrBoundingBox:
+      type: object
+      properties:
+        x:
+          type: integer
+          example: 15
+        y:
+          type: integer
+          example: 120
+        width:
+          type: integer
+          example: 565
+        height:
+          type: integer
+          example: 45
+      required:
+        - x
+        - y
+        - width
+        - height
+
+    OcrBlock:
+      type: object
+      properties:
+        text:
+          type: string
+          example: "WHITEBOARD NOTES: Topic: Real-time Distributed Chat"
+        confidence:
+          type: number
+          format: float
+          example: 0.98
+        boundingBox:
+          $ref: '#/components/schemas/OcrBoundingBox'
+      required:
+        - text
+        - confidence
+
+    OcrResult:
+      type: object
+      properties:
+        rawText:
+          type: string
+          example: "WHITEBOARD NOTES:\nTopic: Real-time Distributed Chat Architecture..."
+        confidence:
+          type: number
+          format: float
+          example: 0.95
+        durationMs:
+          type: integer
+          example: 220
+        engineUsed:
+          type: string
+          example: "GOOGLE_ML_KIT"
+        blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/OcrBlock'
+        isSuccess:
+          type: boolean
+          example: true
+      required:
+        - rawText
+        - confidence
+        - durationMs
+        - engineUsed
+        - isSuccess
+
+    DocumentInput:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Kotlin Coroutines Textbook Notes"
+        rawText:
+          type: string
+          example: "In Kotlin, structured concurrency ensures that new coroutines..."
+        category:
+          type: string
+          example: "Book Scan"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["kotlin", "concurrency", "android"]
+      required:
+        - title
+        - rawText
+        - category
+
+    CapturedDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "doc_1783818582428"
+        title:
+          type: string
+          example: "Kotlin Coroutines Textbook Notes"
+        rawText:
+          type: string
+          example: "In Kotlin, structured concurrency ensures that new coroutines..."
+        summary:
+          type: string
+          example: "An advanced overview of structured concurrency, supervisorScopes, and IO dispatchers in Kotlin coroutines."
+        category:
+          type: string
+          example: "Book Scan"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["kotlin", "concurrency", "android"]
+        createdAt:
+          type: integer
+          format: int64
+          example: 1783818582
+      required:
+        - id
+        - title
+        - rawText
+        - summary
+        - category
+        - createdAt
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "RESOURCE_NOT_FOUND"
+        message:
+          type: string
+          example: "No document found with identifier 'doc_999'"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-07-11T18:51:40Z"
+      required:
+        - code
+        - message
+        - timestamp

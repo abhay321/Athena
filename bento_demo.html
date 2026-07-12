@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Athena: Bento Grid Core UI Layout</title>
+  <link rel="stylesheet" href="bento_grid_layout.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header Section containing system indicators and accessible screen instructions -->
+    <header>
+      <div>
+        <h1>Project Athena</h1>
+        <p style="color: var(--color-secondary-text); margin-top: 0.25rem;">Semantic Bento Ingestion Engine</p>
+      </div>
+      <div class="system-indicator" aria-label="System status: Active Hybrid AI Mode">
+        <span style="display:inline-block; width:8px; height:8px; background-color:var(--color-accent); border-radius:50%;"></span>
+        Active Hybrid AI Mode
+      </div>
+    </header>
+
+    <!-- Interactive Grid Layout -->
+    <main class="bento-grid" aria-label="Athena Knowledge Dashboard">
+      
+      <!-- 1. Smart Capture Card -->
+      <section 
+        class="bento-card bento-card-capture" 
+        tabindex="0" 
+        role="button" 
+        aria-label="Capture Knowledge. Auto scan, OCR and Classify whiteboards, slides, or textbooks. Live capture button. Double tap to open."
+      >
+        <div>
+          <h2>Smart Capture</h2>
+          <p>Instantly digitize textbooks, slides, whiteboard sketches, or meeting papers. Supports perspective correction, shadow clearing, and automatic character segmentation.</p>
+        </div>
+        <div class="card-footer">
+          <span class="badge">OCR Scanner</span>
+          <span style="font-size: 1.125rem;">→</span>
+        </div>
+      </section>
+
+      <!-- 2. Second Brain Stats -->
+      <section 
+        class="bento-card bento-card-stats" 
+        tabindex="0"
+        role="region"
+        aria-label="Second Brain statistics. Total of 147 embedded knowledge nodes ingested."
+      >
+        <div>
+          <h2>Brain Stats</h2>
+          <p>Total memory indexes generated across categorized topics.</p>
+          <div class="stats-display">
+            <span class="stats-number">147</span>
+            <span style="color: var(--color-accent); font-weight: 700; font-size: 0.875rem;">+12 today</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="badge">Local DB Status</span>
+        </div>
+      </section>
+
+      <!-- 3. Gemini AI Card -->
+      <section 
+        class="bento-card bento-card-ai" 
+        tabindex="0"
+        role="button"
+        aria-label="Gemini AI. Hybrid active mode. Double tap to view system architecture details."
+      >
+        <div>
+          <h2>Gemini AI status</h2>
+          <p>Auto-categorizing nodes, translating structured textbook references, and synthesizing direct summaries.</p>
+        </div>
+        <div class="card-footer">
+          <span class="badge">Active Mode</span>
+          <span style="font-size: 0.75rem; font-family: var(--font-family-mono); color: var(--color-accent);">95% CONFIDENCE</span>
+        </div>
+      </section>
+
+      <!-- 4. Semantic Graph Card -->
+      <section 
+        class="bento-card bento-card-graph" 
+        tabindex="0"
+        role="region"
+        aria-label="Semantic Graph. Real-time concept relationship map."
+      >
+        <div class="graph-header">
+          <div>
+            <h2>Semantic Graph</h2>
+            <p>Interactive force-directed relationships of ingested memory nodes.</p>
+          </div>
+          <button 
+            type="button" 
+            aria-label="Recalculate graph forces"
+            onclick="event.stopPropagation(); alert('Recalculating layout graph forces...');"
+          >
+            🔄 Recalculate
+          </button>
+        </div>
+        <div class="graph-canvas" aria-hidden="true">
+          [ Render Dynamic Force Simulation Frame ]
+        </div>
+        <div class="card-footer">
+          <span class="badge">Spatial Mapping</span>
+        </div>
+      </section>
+
+      <!-- 5. Ask Athena (Chat) -->
+      <section 
+        class="bento-card bento-card-chat" 
+        tabindex="0"
+        role="button"
+        aria-label="Ask Athena. Context aware AI assistant. Double tap to open chat."
+      >
+        <div>
+          <h2>Ask Athena</h2>
+          <p>Converse with your consolidated personal knowledge base. Queries both offline indexes and live cloud context documents safely.</p>
+        </div>
+        <div class="card-footer">
+          <span class="badge">Multi-turn Chat</span>
+          <span style="font-size: 1.125rem;">💬</span>
+        </div>
+      </section>
+
+      <!-- 6. Direct Note Card -->
+      <section 
+        class="bento-card bento-card-direct" 
+        tabindex="0"
+        role="button"
+        aria-label="Direct Note. Manual text logging. Double tap to write custom note."
+      >
+        <div>
+          <h2>Direct Note</h2>
+          <p>Quickly type or append raw research logs, to-do task blocks, or sudden insights manually without starting the camera workflow.</p>
+        </div>
+        <div class="card-footer">
+          <span class="badge">Text Note Log</span>
+          <span style="font-size: 1.125rem;">✍️</span>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Add interaction logic replicating Android click listeners for accessibility navigation
+    document.querySelectorAll('.bento-card[role="button"]').forEach(card => {
+      card.addEventListener('click', () => {
+        const label = card.getAttribute('aria-label') || card.querySelector('h2').innerText;
+        console.log(`Action trigger: opening screen corresponding to "${label}"`);
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          card.click();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

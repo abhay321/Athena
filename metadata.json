@@ -1,0 +1,7 @@
+{
+  "name": "Project Athena",
+  "description": "An AI-powered Knowledge Capture Platform and intelligent Second Brain.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

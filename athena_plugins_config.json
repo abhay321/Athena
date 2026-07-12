@@ -1,0 +1,74 @@
+{
+  "plugins_directory": "./plugins",
+  "ocr": {
+    "active": "google_ml_kit",
+    "providers": {
+      "google_ml_kit": {
+        "module": "plugins.google_ml_kit_plugin",
+        "class": "GoogleMlKitOcrPlugin",
+        "config": {
+          "language_code": "en",
+          "confidence_threshold": 0.45
+        }
+      },
+      "paddle_ocr": {
+        "module": "plugins.paddle_ocr_plugin",
+        "class": "PaddleOcrPlugin",
+        "config": {
+          "enable_layout_analysis": true,
+          "use_angle_cls": true
+        }
+      },
+      "tesseract": {
+        "module": "plugins.tesseract_plugin",
+        "class": "TesseractOcrPlugin",
+        "config": {
+          "tessdata_path": "./tessdata",
+          "psm_mode": 3
+        }
+      }
+    }
+  },
+  "ai": {
+    "active": "gemini_api",
+    "providers": {
+      "gemini_api": {
+        "module": "plugins.gemini_ai_plugin",
+        "class": "GeminiAiPlugin",
+        "config": {
+          "model_name": "gemini-3.5-flash",
+          "temperature": 0.2,
+          "max_output_tokens": 1024
+        }
+      },
+      "llama_local": {
+        "module": "plugins.llama_local_plugin",
+        "class": "LlamaLocalPlugin",
+        "config": {
+          "model_path": "./models/llama-3-8b.gguf",
+          "context_size": 4096,
+          "gpu_layers": 16
+        }
+      }
+    }
+  },
+  "storage": {
+    "active": "local_sqlite",
+    "providers": {
+      "local_sqlite": {
+        "module": "athena_storage_plugin",
+        "class": "LocalSqliteAdapter",
+        "config": {
+          "database_path": "./databases/athena.db"
+        }
+      },
+      "cloud_spanner": {
+        "module": "athena_storage_plugin",
+        "class": "RemoteCloudSpannerAdapter",
+        "config": {
+          "connection_string": "spanner://projects/gcp-proj/instances/athena-inst"
+        }
+      }
+    }
+  }
+}
