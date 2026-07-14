@@ -205,8 +205,107 @@ class GeminiServiceImpl : GeminiService {
                 ?: "I apologize, but I couldn't generate a response."
         } catch (e: Exception) {
             e.printStackTrace()
-            "Error querying brain chat: ${e.localizedMessage ?: "Connection failed."}"
+            // High fidelity offline/rate-limit fallback chat
+            runLocalFallbackChat(messages, contextDocs)
         }
+    }
+
+    private fun runLocalFallbackChat(
+        messages: List<ChatMessage>,
+        contextDocs: List<CapturedDocument>
+    ): String {
+        val lastMessage = messages.lastOrNull { it.role == "user" }?.content ?: ""
+        val query = lastMessage.trim()
+
+        val isListingQuery = query.contains("captured", ignoreCase = true) ||
+                query.contains("list", ignoreCase = true) ||
+                query.contains("document", ignoreCase = true) ||
+                query.contains("note", ignoreCase = true) ||
+                query.contains("all", ignoreCase = true) ||
+                query.contains("summary", ignoreCase = true) ||
+                query.contains("what you", ignoreCase = true)
+
+        val matchingDocs = if (isListingQuery) {
+            contextDocs
+        } else {
+            contextDocs.filter { doc ->
+                doc.title.contains(query, ignoreCase = true) ||
+                doc.rawText.contains(query, ignoreCase = true) ||
+                doc.category.contains(query, ignoreCase = true) ||
+                doc.tags.contains(query, ignoreCase = true)
+            }
+        }
+
+        val sb = StringBuilder()
+        sb.append("⚠️ **Athena Local Search Fallback Active** (Gemini API Rate Limit / Quota Exceeded)\n\n")
+
+        if (isListingQuery) {
+            sb.append("Here is an overview of the knowledge and documents captured in your Second Brain so far:\n\n")
+            if (contextDocs.isEmpty()) {
+                sb.append("No documents have been captured yet. You can go to the **Capture** tab to scan whiteboards, documents, or logs.")
+            } else {
+                contextDocs.forEach { doc ->
+                    sb.append("### 📝 [${doc.title}]\n")
+                    sb.append("- **Category**: ${doc.category}\n")
+                    sb.append("- **Tags**: `${doc.tags}`\n")
+                    sb.append("- **Summary**: ${doc.summary}\n\n")
+                }
+                sb.append("--- \n*Tip: Try querying specific keywords like 'Jira', 'FTS5', or 'deduplicator' to search inside these documents!*")
+            }
+            return sb.toString()
+        }
+
+        if (matchingDocs.isNotEmpty()) {
+            sb.append("I searched your Second Brain and found **${matchingDocs.size}** matching document(s) for your query: **\"$query\"**:\n\n")
+            matchingDocs.forEach { doc ->
+                sb.append("### 📝 [${doc.title}]\n")
+                sb.append("- **Category**: ${doc.category}\n")
+                sb.append("- **Summary**: ${doc.summary}\n\n")
+
+                // Extract a snippet containing the query word
+                val lines = doc.rawText.lines()
+                val snippetLines = lines.filter { it.contains(query, ignoreCase = true) }.take(3)
+                if (snippetLines.isNotEmpty()) {
+                    sb.append("**Matching context details:**\n")
+                    snippetLines.forEach { line ->
+                        sb.append("> ... ${line.trim()} ...\n")
+                    }
+                    sb.append("\n")
+                }
+
+                // Show action items if relevant
+                val hasTodoQuery = query.contains("todo", ignoreCase = true) || query.contains("action", ignoreCase = true) || query.contains("task", ignoreCase = true)
+                if (hasTodoQuery && doc.actionItems.isNotEmpty()) {
+                    try {
+                        val listType = com.squareup.moshi.Types.newParameterizedType(List::class.java, String::class.java)
+                        val adapter = moshi.adapter<List<String>>(listType)
+                        val actions = adapter.fromJson(doc.actionItems)
+                        if (!actions.isNullOrEmpty()) {
+                            sb.append("**Captured Action Items:**\n")
+                            actions.forEach { action ->
+                                sb.append("- $action\n")
+                            }
+                            sb.append("\n")
+                        }
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                }
+            }
+        } else {
+            sb.append("I couldn't find any direct matches in your Second Brain for **\"$query\"**.\n\n")
+            sb.append("However, here are the most recent documents I have access to:\n\n")
+            if (contextDocs.isEmpty()) {
+                sb.append("No documents captured yet.")
+            } else {
+                contextDocs.forEach { doc ->
+                    sb.append("- **[${doc.title}]** (${doc.category}) - *${doc.summary}*\n")
+                }
+            }
+            sb.append("\nTo make me smarter, configure your `GEMINI_API_KEY` in the Secrets panel, or scan more documents containing \"$query\"!")
+        }
+
+        return sb.toString()
     }
 
     // High fidelity offline fallback parsing
