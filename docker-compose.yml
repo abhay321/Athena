@@ -13,9 +13,15 @@ services:
       - gradle-cache:/root/.gradle
     environment:
       - GRADLE_USER_HOME=/root/.gradle
-    # Ensure correct executing permissions are set before assembling the APK
+    # Ensure correct executing permissions are set and download uncorrupted gradle-wrapper.jar if needed
     entrypoint: >
-      bash -c "chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon"
+      bash -c "
+      if [ ! -f gradle/wrapper/gradle-wrapper.jar ] || [ $$(stat -c%s gradle/wrapper/gradle-wrapper.jar 2>/dev/null || echo 0) -lt 10000 ]; then
+        echo 'Downloading a fresh, uncorrupted Gradle wrapper binary...';
+        mkdir -p gradle/wrapper;
+        wget -q -O gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/main/gradle/wrapper/gradle-wrapper.jar;
+      fi;
+      chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon"
 
 volumes:
   gradle-cache:
