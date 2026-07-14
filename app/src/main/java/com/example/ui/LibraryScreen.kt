@@ -543,52 +543,10 @@ fun DocumentMarkdownView(doc: CapturedDocument) {
                     )
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-                    // Render lines simply
-                    doc.markdown.lines().forEach { line ->
-                        if (line.isNotBlank()) {
-                            val trimmed = line.trim()
-                            when {
-                                trimmed.startsWith("# ") -> {
-                                    Text(
-                                        text = trimmed.replace("# ", ""),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
-                                    )
-                                }
-                                trimmed.startsWith("## ") -> {
-                                    Text(
-                                        text = trimmed.replace("## ", ""),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                                    )
-                                }
-                                trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Text("•", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                        Text(
-                                            text = trimmed.substring(2),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                else -> {
-                                    Text(
-                                        text = trimmed,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    MarkdownText(
+                        text = doc.markdown,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

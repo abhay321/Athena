@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -121,6 +123,7 @@ fun OcrScannerView(viewModel: BrainViewModel) {
 
     var activeScrollSessionIndex by remember { mutableStateOf(0) }
     var currentScrollFrameIndex by remember { mutableStateOf(0) }
+    var showEvaluationPopup by remember { mutableStateOf(false) }
 
     // Laser animation
     val infiniteTransition = rememberInfiniteTransition()
@@ -727,8 +730,191 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                         Text("Merge & Sync to AI Note", fontWeight = FontWeight.Bold)
                     }
                 }
+
+                // Evaluation / Preview Section Card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Visibility,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Stitched Evaluation & Preview",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                        Text(
+                            text = "Evaluate and verify the aggregated continuous text buffer before running the final structured AI analysis.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(
+                            onClick = { showEvaluationPopup = true },
+                            enabled = continuousSegments.isNotEmpty(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .testTag("evaluate_preview_button"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.RateReview,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Preview & Evaluate Content", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
+    }
+
+    if (showEvaluationPopup) {
+        val deduplicatedText = viewModel.getDeduplicatedContinuousText()
+        val rawCharCount = continuousSegments.sumOf { it.length }
+        val dedupCharCount = deduplicatedText.length
+        val compressionPercent = if (rawCharCount > 0) {
+            ((rawCharCount - dedupCharCount).toFloat() / rawCharCount * 100).toInt().coerceAtLeast(0)
+        } else {
+            0
+        }
+
+        AlertDialog(
+            onDismissRequest = { showEvaluationPopup = false },
+            icon = {
+                Icon(
+                    Icons.Default.Analytics,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Evaluate Extracted Note Content",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Statistics metrics badge
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Frames", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${continuousSegments.size}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Saved Space", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$compressionPercent%", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Final Chars", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$dedupCharCount", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
+
+                    Text(
+                        text = "Aggregated & Deduplicated Output Buffer:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Scrollable container for the text preview
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Black),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(10.dp)
+                        ) {
+                            val scrollState = rememberScrollState()
+                            Text(
+                                text = deduplicatedText.ifEmpty { "No text content has been captured yet. Use the scrolling viewport above to capture overlap frames." },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (deduplicatedText.isEmpty()) Color.Gray else Color.White,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(scrollState)
+                            )
+                        }
+                    }
+                    
+                    Text(
+                        text = "Verify that text blocks were successfully merged and overlapping duplications were pruned by the intelligent window filter.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showEvaluationPopup = false
+                        viewModel.stopAndProcessContinuousSession()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Approve & Sync", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showEvaluationPopup = false }
+                ) {
+                    Text("Close Preview")
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     }
 }
 

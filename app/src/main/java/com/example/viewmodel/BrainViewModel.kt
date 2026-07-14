@@ -436,6 +436,10 @@ class BrainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getDeduplicatedContinuousText(): String {
+        return deduplicateText(continuousSegments.value)
+    }
+
     private fun deduplicateText(segments: List<String>): String {
         val mergedLines = mutableListOf<String>()
         segments.forEach { segment ->

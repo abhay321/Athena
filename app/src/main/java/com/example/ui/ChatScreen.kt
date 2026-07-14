@@ -19,9 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ChatMessage
@@ -306,7 +311,7 @@ fun ChatBubble(
                         color = if (isUser) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
                         letterSpacing = 1.sp
                     )
-                    Text(
+                    MarkdownText(
                         text = message.content,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -367,6 +372,184 @@ fun ChatBubble(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun MarkdownText(
+    text: String,
+    style: TextStyle = MaterialTheme.typography.bodyMedium,
+    color: Color = MaterialTheme.colorScheme.onSurface,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        val lines = text.lines()
+        var inCodeBlock = false
+        val codeBlockLines = mutableListOf<String>()
+
+        lines.forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.startsWith("```")) {
+                if (inCodeBlock) {
+                    // Render code block
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Black.copy(alpha = 0.8f)
+                        ),
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = codeBlockLines.joinToString("\n"),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                color = Color(0xFF80FF80) // nice green
+                            )
+                        }
+                    }
+                    codeBlockLines.clear()
+                    inCodeBlock = false
+                } else {
+                    inCodeBlock = true
+                }
+            } else if (inCodeBlock) {
+                codeBlockLines.add(line)
+            } else {
+                if (line.isNotBlank()) {
+                    when {
+                        trimmed.startsWith("### ") -> {
+                            Text(
+                                text = parseInlineStyles(trimmed.removePrefix("### ")),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+                            )
+                        }
+                        trimmed.startsWith("## ") -> {
+                            Text(
+                                text = parseInlineStyles(trimmed.removePrefix("## ")),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                        trimmed.startsWith("# ") -> {
+                            Text(
+                                text = parseInlineStyles(trimmed.removePrefix("# ")),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp)
+                            )
+                        }
+                        trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ") -> {
+                            val bulletContent = when {
+                                trimmed.startsWith("- ") -> trimmed.removePrefix("- ")
+                                trimmed.startsWith("* ") -> trimmed.removePrefix("* ")
+                                else -> trimmed.removePrefix("• ")
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text("•", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text(
+                                    text = parseInlineStyles(bulletContent),
+                                    style = style,
+                                    color = color
+                                )
+                            }
+                        }
+                        else -> {
+                            Text(
+                                text = parseInlineStyles(line),
+                                style = style,
+                                color = color
+                            )
+                        }
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+            }
+        }
+        // Handle unclosed code block if any
+        if (inCodeBlock && codeBlockLines.isNotEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.Black.copy(alpha = 0.8f)
+                ),
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Text(
+                        text = codeBlockLines.joinToString("\n"),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                        color = Color(0xFF80FF80)
+                    )
+                }
+            }
+        }
+    }
+}
+
+fun parseInlineStyles(text: String): androidx.compose.ui.text.AnnotatedString {
+    return androidx.compose.ui.text.buildAnnotatedString {
+        var currentIndex = 0
+        while (currentIndex < text.length) {
+            val boldStart = text.indexOf("**", currentIndex)
+            val codeStart = text.indexOf("`", currentIndex)
+
+            // Check which marker comes first
+            if (boldStart != -1 && (codeStart == -1 || boldStart < codeStart)) {
+                // Handle bold
+                append(text.substring(currentIndex, boldStart))
+                val boldEnd = text.indexOf("**", boldStart + 2)
+                if (boldEnd != -1) {
+                    pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold))
+                    append(text.substring(boldStart + 2, boldEnd))
+                    pop()
+                    currentIndex = boldEnd + 2
+                } else {
+                    append("**")
+                    currentIndex = boldStart + 2
+                }
+            } else if (codeStart != -1 && (boldStart == -1 || codeStart < boldStart)) {
+                // Handle inline code
+                append(text.substring(currentIndex, codeStart))
+                val codeEnd = text.indexOf("`", codeStart + 1)
+                if (codeEnd != -1) {
+                    pushStyle(
+                        androidx.compose.ui.text.SpanStyle(
+                            fontFamily = FontFamily.Monospace,
+                            background = Color.White.copy(alpha = 0.1f),
+                            color = Color(0xFFFF9800) // accent color for inline code
+                        )
+                    )
+                    append(text.substring(codeStart + 1, codeEnd))
+                    pop()
+                    currentIndex = codeEnd + 1
+                } else {
+                    append("`")
+                    currentIndex = codeStart + 1
+                }
+            } else {
+                append(text.substring(currentIndex))
+                break
             }
         }
     }
