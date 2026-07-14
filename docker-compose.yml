@@ -12,8 +12,14 @@ services:
       - gradle-cache:/root/.gradle
     environment:
       - GRADLE_USER_HOME=/root/.gradle
-    # Compile the APK directly using the pre-installed container Gradle compiler, ignoring host wrapper file corruption
-    entrypoint: gradle assembleDebug --no-daemon
+    # Restore debug.keystore from base64 if missing, then compile the APK directly using the container Gradle
+    entrypoint: >
+      bash -c "
+      if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
+        echo 'Restoring debug.keystore from base64 representation...';
+        base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || base64 --decode debug.keystore.base64 > debug.keystore;
+      fi;
+      gradle assembleDebug --no-daemon"
 
 volumes:
   gradle-cache:
