@@ -1,5 +1,5 @@
 # Use an official, stable JDK 21 base image (required for modern Gradle, Kotlin, and AGP)
-FROM eclipse-temurin:21-jdk-jammy
+FROM --platform=linux/amd64 eclipse-temurin:21-jdk-jammy
 
 # Set environment variables for Android SDK location and system paths
 ENV ANDROID_HOME=/opt/android-sdk

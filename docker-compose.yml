@@ -1,5 +1,6 @@
 services:
   athena-builder:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
