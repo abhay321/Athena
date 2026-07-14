@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  athena-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: athena_apk_builder
+    volumes:
+      # Mount the local project directory to compilation workspace
+      - .:/workspace
+      # Keep Gradle caches persistent across runs to speed up consecutive compilations
+      - gradle-cache:/root/.gradle
+    environment:
+      - GRADLE_USER_HOME=/root/.gradle
+    # Ensure correct executing permissions are set before assembling the APK
+    entrypoint: >
+      bash -c "chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon"
+
+volumes:
+  gradle-cache:

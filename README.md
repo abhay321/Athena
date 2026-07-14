@@ -57,13 +57,50 @@ By pairing a visually stunning **Jetpack Compose Android Client** with fully res
 
 ## 🛠️ Installation & Execution Guidelines
 
-### 1. Running the Android Application
-To view, interact, and test the dynamic UI of the mobile client:
-- The preview is displayed via the **Streaming Emulator** right inside your browser window when running the project inside AI Studio.
-- To build the debug APK locally, trigger the compilation pipeline:
-  ```bash
-  gradle assembleDebug
-  ```
+### 1. Running & Compiling the Android Application
+
+You can compile Project Athena's Android application locally using your native development tools or automate the entire toolchain through **Docker**.
+
+#### Option A: Fully Automated Build with Docker Compose (Recommended)
+This is the easiest option since it automatically configures the Android SDK, platforms, build tools, licenses, and compiler inside an isolated container:
+
+1. **Prerequisites:** Ensure you have [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) installed.
+2. **Build and Run:** Run the following command from the project root folder:
+   ```bash
+   docker compose up
+   ```
+3. **Retrieve the APK:** Once the build successfully completes, the compilation output maps back directly to your local computer. You will find your ready-to-install Android APK at:
+   ```filepath
+   app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+---
+
+#### Option B: Local Building via VS Code (or Terminal)
+If you prefer building natively using your local machine environment:
+
+1. **Prerequisites:**
+   - Install **Java Development Kit (JDK) 17** (e.g., [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17)).
+   - Set the `JAVA_HOME` environment variable pointing to your JDK 17 installation.
+   - Install the **Kotlin** and **Extension Pack for Java** extensions in VS Code if you want code completion/syntax highlighting.
+2. **Accept SDK Licenses:** Ensure your local Android SDK licenses are accepted by running:
+   ```bash
+   sdkmanager --licenses
+   ```
+3. **Compile the APK:**
+   - **Linux / macOS:**
+     ```bash
+     chmod +x ./gradlew
+     ./gradlew assembleDebug
+     ```
+   - **Windows (PowerShell):**
+     ```powershell
+     .\gradlew.bat assembleDebug
+     ```
+4. **Locate your APK:** Find the generated installable file in your workspace at `app/build/outputs/apk/debug/app-debug.apk`. Copy this onto your device via USB, or install it using Android Debug Bridge (ADB):
+   ```bash
+   adb install app/build/outputs/apk/debug/app-debug.apk
+   ```
 
 ### 2. Testing the Asynchronous Event-Driven Pipelines (Python)
 To run the thread-safe event bus simulation:
