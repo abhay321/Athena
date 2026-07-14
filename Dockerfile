@@ -1,9 +1,9 @@
-# Use an official, stable JDK 17 base image (required for modern Gradle, Kotlin, and AGP)
-FROM eclipse-temurin:17-jdk-jammy
+# Use an official, stable JDK 21 base image (required for modern Gradle, Kotlin, and AGP)
+FROM eclipse-temurin:21-jdk-jammy
 
 # Set environment variables for Android SDK location and system paths
 ENV ANDROID_HOME=/opt/android-sdk
-ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools/34.0.0
+ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools/34.0.0:/opt/gradle-9.3.1/bin
 
 # Install system utilities required for SDK download and execution
 RUN apt-get update && apt-get install -y \
@@ -27,8 +27,13 @@ RUN sdkmanager "platform-tools" \
     "build-tools;34.0.0" \
     "platforms;android-35"
 
+# Download and install Gradle 9.3.1
+RUN wget -q https://services.gradle.org/distributions/gradle-9.3.1-bin.zip -O /tmp/gradle.zip && \
+    unzip -q /tmp/gradle.zip -d /opt && \
+    rm /tmp/gradle.zip
+
 # Set the workspace directory inside the container
 WORKDIR /workspace
 
 # Run the build tool compilation by default when starting the container
-CMD ["./gradlew", "assembleDebug", "--no-daemon"]
+CMD ["gradle", "assembleDebug", "--no-daemon"]

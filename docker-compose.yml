@@ -11,15 +11,8 @@ services:
       - gradle-cache:/root/.gradle
     environment:
       - GRADLE_USER_HOME=/root/.gradle
-    # Ensure correct executing permissions are set and download/re-verify gradle-wrapper.jar if corrupted or missing
-    entrypoint: >
-      bash -c "
-      if [ ! -f gradle/wrapper/gradle-wrapper.jar ] || ! unzip -t gradle/wrapper/gradle-wrapper.jar &>/dev/null; then
-        echo 'Gradle wrapper jar is missing or corrupted. Downloading a fresh, uncorrupted Gradle wrapper binary...';
-        mkdir -p gradle/wrapper;
-        wget -q -O gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/main/gradle/wrapper/gradle-wrapper.jar;
-      fi;
-      chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon"
+    # Compile the APK directly using the pre-installed container Gradle compiler, ignoring host wrapper file corruption
+    entrypoint: gradle assembleDebug --no-daemon
 
 volumes:
   gradle-cache:
