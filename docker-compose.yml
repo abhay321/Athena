@@ -12,12 +12,18 @@ services:
       - gradle-cache:/root/.gradle
     environment:
       - GRADLE_USER_HOME=/root/.gradle
-    # Restore debug.keystore from base64 if missing, then compile the APK directly using the container Gradle
+    # Restore debug.keystore from base64 if missing, or generate a fresh one if missing or corrupt, then compile the APK
     entrypoint: >
       bash -c "
-      if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
-        echo 'Restoring debug.keystore from base64 representation...';
-        base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || base64 --decode debug.keystore.base64 > debug.keystore;
+      if [ ! -f debug.keystore ] || [ ! -s debug.keystore ]; then
+        if [ -f debug.keystore.base64 ] && [ -s debug.keystore.base64 ]; then
+          echo 'Restoring debug.keystore from base64 representation...';
+          base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || base64 --decode debug.keystore.base64 > debug.keystore;
+        fi;
+      fi;
+      if [ ! -f debug.keystore ] || [ ! -s debug.keystore ]; then
+        echo 'Generating a fresh fallback debug.keystore...';
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US';
       fi;
       gradle assembleDebug --no-daemon"
 
