@@ -11,11 +11,19 @@ data class OcrTemplate(
     val imageResName: String
 )
 
+data class ScrollSegment(
+    val id: String,
+    val title: String,
+    val pageNumber: Int,
+    val text: String
+)
+
 class OcrSimulator : OcrService {
 
     override val engineType: OcrEngineType = OcrEngineType.SIMULATOR
 
     val templates: List<OcrTemplate> get() = Companion.templates
+    val scrollSessions: List<List<ScrollSegment>> get() = Companion.scrollSessions
 
     private var isInitialized = false
 
@@ -144,6 +152,106 @@ class OcrSimulator : OcrService {
                     - [ ] Set up the Room database entities for notes, relationships, and chat. @Marcus (Target: Friday)
                     - [ ] Design the adaptive M3 Compose dashboard with the custom Cosmic Slate dark theme. @Alex
                 """.trimIndent()
+            )
+        )
+
+        val scrollSessions = listOf(
+            listOf(
+                ScrollSegment(
+                    id = "jira_scroll",
+                    title = "Jira Ticket #ATH-291 (Part 1)",
+                    pageNumber = 1,
+                    text = """
+                        JIRA-291: REAL-TIME FRAME DEDUPLICATOR ENGINE
+                        Status: In Progress | Priority: Critical | Assignee: Alex
+                        Description: Point camera at screen while scrolling. The system should continuously capture frames, perform OCR, and merge them into a single Second Brain document.
+                        Acceptance Criteria:
+                        - Real-time video frame extraction (using CameraX Analyzer)
+                        - Automatic sliding-window Jaccard distance or Cosine similarity to skip redundant frames
+                    """.trimIndent()
+                ),
+                ScrollSegment(
+                    id = "jira_scroll",
+                    title = "Jira Ticket #ATH-291 (Part 2)",
+                    pageNumber = 2,
+                    text = """
+                        Acceptance Criteria (continued):
+                        - Extract text blocks using local OCR or Gemini Vision
+                        - Merge overlapping text pieces to form a continuous markdown note
+                        - Extract task items automatically and append them to the checklist
+                        Technical Architecture:
+                        - Use CameraX `ImageAnalysis` to analyze frames every 500ms
+                        - Crop central bounding box to improve text legibility
+                    """.trimIndent()
+                ),
+                ScrollSegment(
+                    id = "jira_scroll",
+                    title = "Jira Ticket #ATH-291 (Part 3)",
+                    pageNumber = 3,
+                    text = """
+                        Technical Architecture (continued):
+                        - Buffer extracted text frames in a sliding history queue
+                        - Compare Jaccard index: words_intersection / words_union. If index > 0.82, discard frame as redundant.
+                        - Once scrolling is complete, dispatch combined payload to Gemini 3.5 Flash for summarization and tag linking.
+                        TODO items:
+                        - [ ] Run end-to-end integration test of frame deduplicator. @Alex
+                        - [ ] Design custom adaptive Jetpack Compose viewport HUD. @Zoe
+                    """.trimIndent()
+                )
+            ),
+            listOf(
+                ScrollSegment(
+                    id = "github_scroll",
+                    title = "GitHub PR #409 (Part 1)",
+                    pageNumber = 1,
+                    text = """
+                        GITHUB PR #409: FEAT: LOCAL VECTOR STORAGE INTEGRATION
+                        Branches: `feature/local-rag` -> `main` | Reviewers: Zoe, Chloe
+                        Changes: Integrated SQLite FTS5 extension and SQLite-Vec extension to support offline embedding storage and semantic search.
+                        Files Modified:
+                        - `AppDatabase.kt`
+                        - `DocumentDao.kt`
+                        - `VectorSearchEngine.kt`
+                    """.trimIndent()
+                ),
+                ScrollSegment(
+                    id = "github_scroll",
+                    title = "GitHub PR #409 (Part 2)",
+                    pageNumber = 2,
+                    text = """
+                        Key Implementations:
+                        - Added `vector_embeddings` column to `CapturedDocument` table.
+                        - Implemented local cosine similarity calculation for offline search fallback.
+                        - Created `TagCloud` dynamic visualizer on the dashboard.
+                        Code Sample:
+                        ```kotlin
+                        fun cosineSimilarity(v1: FloatArray, v2: FloatArray): Float {
+                            var dotProduct = 0f
+                            var normA = 0f
+                            var normB = 0f
+                            for (i in v1.indices) {
+                                dotProduct += v1[i] * v2[i]
+                                normA += v1[i] * v1[i]
+                                normB += v2[i] * v2[i]
+                            }
+                            return dotProduct / (sqrt(normA) * sqrt(normB))
+                        }
+                        ```
+                    """.trimIndent()
+                ),
+                ScrollSegment(
+                    id = "github_scroll",
+                    title = "GitHub PR #409 (Part 3)",
+                    pageNumber = 3,
+                    text = """
+                        Local Cosine Similarity Testing results:
+                        - Vector search completes in <5ms for 500 records on device.
+                        - Matches semantic keywords successfully without calling remote APIs.
+                        TODO items:
+                        - [ ] Write unit tests for `cosineSimilarity` mathematical correctness. @Zoe
+                        - [ ] Implement incremental indexing on background work manager. @Chloe
+                    """.trimIndent()
+                )
             )
         )
     }

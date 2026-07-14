@@ -78,6 +78,13 @@ class BrainViewModel(application: Application) : AndroidViewModel(application) {
     val manualCategory = MutableStateFlow("Personal")
     val isSavingManual = MutableStateFlow(false)
 
+    // --- Continuous Scroll Scanning State ---
+    val isContinuousActive = MutableStateFlow(false)
+    val continuousSegments = MutableStateFlow<List<String>>(emptyList())
+    val continuousStatus = MutableStateFlow("")
+    val continuousTitle = MutableStateFlow("Jira & Confluence Scroll Ingest")
+    val continuousCategory = MutableStateFlow("Project Plans")
+
     // --- Stats & Derived States ---
     val filteredDocuments = combine(
         allDocuments,
@@ -325,6 +332,121 @@ class BrainViewModel(application: Application) : AndroidViewModel(application) {
                 activeTab.value = "library"
             }
         }
+    }
+
+    // --- Continuous Session Control Operations ---
+
+    fun startContinuousSession(title: String, category: String) {
+        continuousTitle.value = title.ifBlank { "Jira & Confluence Scroll Ingest" }
+        continuousCategory.value = category.ifBlank { "Project Plans" }
+        continuousSegments.value = emptyList()
+        isContinuousActive.value = true
+        continuousStatus.value = "Continuous scan session initialized. Point camera at screen and scroll..."
+    }
+
+    fun captureContinuousSegment(segmentText: String) {
+        if (!isContinuousActive.value) return
+        val current = continuousSegments.value.toMutableList()
+        current.add(segmentText)
+        continuousSegments.value = current
+        continuousStatus.value = "Frame #${current.size} Captured! Detected text segments. Continue scrolling..."
+    }
+
+    fun cancelContinuousSession() {
+        isContinuousActive.value = false
+        continuousSegments.value = emptyList()
+        continuousStatus.value = ""
+    }
+
+    fun stopAndProcessContinuousSession() {
+        if (!isContinuousActive.value) return
+        val segments = continuousSegments.value
+        if (segments.isEmpty()) {
+            cancelContinuousSession()
+            return
+        }
+
+        viewModelScope.launch {
+            isScanning.value = true
+            scanProgress.value = 0.1f
+            scanningStatusMessage.value = "Combining captured frames..."
+            delay(600)
+
+            scanProgress.value = 0.3f
+            scanningStatusMessage.value = "Deduplicating overlapping text segments..."
+            val deduplicatedText = deduplicateText(segments)
+            delay(800)
+
+            scanProgress.value = 0.55f
+            scanningStatusMessage.value = "Analyzing unified business & technical context..."
+            
+            val engineType = selectedOcrEngineType.value
+            scanProgress.value = 0.8f
+            scanningStatusMessage.value = "Athena AI: Generating structured task summary, checklists, and memory cards..."
+            
+            val result = geminiService.analyzeDocument(deduplicatedText)
+            
+            scanProgress.value = 1.0f
+            scanningStatusMessage.value = "Successfully ingested continuous work session!"
+            delay(500)
+
+            val newDocId = repository.insertDocument(
+                CapturedDocument(
+                    title = continuousTitle.value,
+                    rawText = deduplicatedText,
+                    markdown = result.markdown,
+                    structuredJson = "",
+                    imagePath = "continuous_capture",
+                    category = continuousCategory.value,
+                    summary = result.summary,
+                    tags = result.tags.joinToString(", "),
+                    actionItems = serializeList(result.actionItems),
+                    flashcards = serializeFlashcards(result.flashcards)
+                )
+            )
+
+            // Auto Linker
+            allDocuments.value.forEach { existingDoc ->
+                if (existingDoc.id != newDocId) {
+                    val sharedTags = existingDoc.tags.split(",").map { it.trim() }
+                        .intersect(result.tags.map { it.trim() }.toSet())
+                    if (sharedTags.isNotEmpty()) {
+                        repository.insertRelationship(
+                            BrainRelationship(
+                                sourceDocId = newDocId,
+                                targetDocId = existingDoc.id,
+                                relationshipType = "Related",
+                                strength = 0.7f
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Cleanup
+            isContinuousActive.value = false
+            continuousSegments.value = emptyList()
+            isScanning.value = false
+
+            val newlyCreatedDoc = repository.getDocumentById(newDocId)
+            if (newlyCreatedDoc != null) {
+                selectedDoc.value = newlyCreatedDoc
+                activeTab.value = "library"
+            }
+        }
+    }
+
+    private fun deduplicateText(segments: List<String>): String {
+        val mergedLines = mutableListOf<String>()
+        segments.forEach { segment ->
+            segment.lines().forEach { line ->
+                val trimmed = line.trim()
+                if (trimmed.isNotBlank() && !mergedLines.any { it.trim().equals(trimmed, ignoreCase = true) }) {
+                    mergedLines.add(line)
+                }
+            }
+        }
+        return mergedLines.joinToString("\n")
     }
 
     fun toggleFavorite(document: CapturedDocument) {
