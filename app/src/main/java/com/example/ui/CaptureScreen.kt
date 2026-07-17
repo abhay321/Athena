@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,13 +59,8 @@ fun CaptureScreen(
     viewModel: BrainViewModel,
     modifier: Modifier = Modifier
 ) {
-    val activeMode by viewModel.activeCaptureMode.collectAsState()
-    val isScanning by viewModel.isScanning.collectAsState()
-    
-    // Unified tab index: 0 = Single Scan, 1 = Live Scroll Ingest, 2 = Manual Input
-    var selectedSubTabIndex by remember(activeMode) {
-        mutableStateOf(if (activeMode == "text") 2 else 0)
-    }
+    var isSimulatedScanner by remember { mutableStateOf(true) }
+    var scannerTabIndex by remember { mutableStateOf(1) } // 0 = Single Snapshot, 1 = Live Scroll Capture (matches Image 1 as default)
 
     Column(
         modifier = modifier
@@ -72,53 +68,123 @@ fun CaptureScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- Unified Single TabRow for clean navigation & zero visual noise ---
-        TabRow(
-            selectedTabIndex = selectedSubTabIndex,
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-            contentColor = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.clip(RoundedCornerShape(12.dp))
+        // --- 1. Custom High-Fidelity Pill Segment Controller ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF13141F), RoundedCornerShape(24.dp))
+                .padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Tab(
-                selected = selectedSubTabIndex == 0,
-                onClick = { 
-                    if (!isScanning) {
-                        selectedSubTabIndex = 0
-                        viewModel.activeCaptureMode.value = "camera"
-                    }
-                },
-                text = { Text("Single Scan", fontWeight = FontWeight.Bold, fontSize = 11.sp) },
-                icon = { Icon(Icons.Default.FilterFrames, contentDescription = "Single", modifier = Modifier.size(18.dp)) }
-            )
-            Tab(
-                selected = selectedSubTabIndex == 1,
-                onClick = { 
-                    if (!isScanning) {
-                        selectedSubTabIndex = 1
-                        viewModel.activeCaptureMode.value = "camera"
-                    }
-                },
-                text = { Text("Live Scroll Ingest", fontWeight = FontWeight.Bold, fontSize = 11.sp) },
-                icon = { Icon(Icons.Default.DynamicFeed, contentDescription = "Continuous", modifier = Modifier.size(18.dp)) }
-            )
-            Tab(
-                selected = selectedSubTabIndex == 2,
-                onClick = { 
-                    if (!isScanning) {
-                        selectedSubTabIndex = 2
-                        viewModel.activeCaptureMode.value = "text"
-                    }
-                },
-                text = { Text("Manual Text", fontWeight = FontWeight.Bold, fontSize = 11.sp) },
-                icon = { Icon(Icons.Default.EditNote, contentDescription = "Manual Input", modifier = Modifier.size(18.dp)) }
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isSimulatedScanner) Color(0xFF2C2D3B) else Color.Transparent)
+                    .clickable { isSimulatedScanner = true }
+                    .padding(vertical = 10.dp)
+                    .testTag("segment_simulated_scanner"),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PhotoCamera,
+                        contentDescription = null,
+                        tint = if (isSimulatedScanner) Color.White else Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Simulated Scanner",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = if (isSimulatedScanner) Color.White else Color.Gray
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (!isSimulatedScanner) Color(0xFF2C2D3B) else Color.Transparent)
+                    .clickable { isSimulatedScanner = false }
+                    .padding(vertical = 10.dp)
+                    .testTag("segment_direct_input"),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notes,
+                        contentDescription = null,
+                        tint = if (!isSimulatedScanner) Color.White else Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Direct Input",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = if (!isSimulatedScanner) Color.White else Color.Gray
+                    )
+                }
+            }
         }
 
-        Box(modifier = Modifier.weight(1f)) {
-            when (selectedSubTabIndex) {
-                0 -> SingleScanView(viewModel)
-                1 -> LiveScrollIngestView(viewModel)
-                2 -> DirectInputView(viewModel)
+        // --- 2. Multi-Level Navigation Render ---
+        if (isSimulatedScanner) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Secondary Underline TabRow (Matches Screenshot 1)
+                TabRow(
+                    selectedTabIndex = scannerTabIndex,
+                    containerColor = Color.Transparent,
+                    contentColor = Color(0xFF3F8CFF),
+                    divider = {},
+                    indicator = { tabPositions ->
+                        if (scannerTabIndex < tabPositions.size) {
+                            TabRowDefaults.SecondaryIndicator(
+                                Modifier.tabIndicatorOffset(tabPositions[scannerTabIndex]),
+                                height = 3.dp,
+                                color = Color(0xFF3F8CFF)
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Tab(
+                        selected = scannerTabIndex == 0,
+                        onClick = { scannerTabIndex = 0 },
+                        text = { Text("Single Snapshot", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        icon = { Icon(Icons.Default.CropFree, contentDescription = "Single Snapshot") },
+                        selectedContentColor = Color(0xFF3F8CFF),
+                        unselectedContentColor = Color.Gray
+                    )
+                    Tab(
+                        selected = scannerTabIndex == 1,
+                        onClick = { scannerTabIndex = 1 },
+                        text = { Text("Live Scroll Capture", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        icon = { Icon(Icons.Default.Layers, contentDescription = "Live Scroll Capture") },
+                        selectedContentColor = Color(0xFF3F8CFF),
+                        unselectedContentColor = Color.Gray
+                    )
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    when (scannerTabIndex) {
+                        0 -> SingleScanView(viewModel)
+                        1 -> LiveScrollCaptureView(viewModel)
+                    }
+                }
+            }
+        } else {
+            Box(modifier = Modifier.weight(1f)) {
+                DirectInputView(viewModel)
             }
         }
     }
@@ -137,7 +203,6 @@ fun SingleScanView(viewModel: BrainViewModel) {
     var useSimulationFallback by remember { mutableStateOf(true) }
     var cameraInitError by remember { mutableStateOf<String?>(null) }
 
-    // Laser scanning animation offset
     val infiniteTransition = rememberInfiniteTransition()
     val laserOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -171,11 +236,11 @@ fun SingleScanView(viewModel: BrainViewModel) {
                         .clickable(enabled = !isScanning) { viewModel.selectTemplate(template) }
                         .border(
                             width = if (isSelected) 2.dp else 0.dp,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            color = if (isSelected) Color(0xFF3F8CFF) else Color.Transparent,
                             shape = RoundedCornerShape(12.dp)
                         ),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        containerColor = if (isSelected) Color(0xFF3F8CFF).copy(alpha = 0.12f)
                         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                     )
                 ) {
@@ -199,7 +264,7 @@ fun SingleScanView(viewModel: BrainViewModel) {
                                     else -> Icons.Default.EventNote
                                 },
                                 contentDescription = template.category,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = Color(0xFF3F8CFF),
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -220,7 +285,6 @@ fun SingleScanView(viewModel: BrainViewModel) {
             }
         }
 
-        // Viewport representation (Responsive, fills leftover space beautifully)
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -248,21 +312,16 @@ fun SingleScanView(viewModel: BrainViewModel) {
                     )
                 }
 
-                // HUD boundaries & overlay
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(14.dp)
-                ) {
-                    Box(modifier = Modifier.align(Alignment.TopStart).size(20.dp).border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(topStart = 6.dp)))
-                    Box(modifier = Modifier.align(Alignment.TopEnd).size(20.dp).border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(topEnd = 6.dp)))
-                    Box(modifier = Modifier.align(Alignment.BottomStart).size(20.dp).border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(bottomStart = 6.dp)))
-                    Box(modifier = Modifier.align(Alignment.BottomEnd).size(20.dp).border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(bottomEnd = 6.dp)))
+                Box(modifier = Modifier.fillMaxSize().padding(14.dp)) {
+                    Box(modifier = Modifier.align(Alignment.TopStart).size(20.dp).border(2.dp, Color(0xFF3F8CFF), RoundedCornerShape(topStart = 6.dp)))
+                    Box(modifier = Modifier.align(Alignment.TopEnd).size(20.dp).border(2.dp, Color(0xFF3F8CFF), RoundedCornerShape(topEnd = 6.dp)))
+                    Box(modifier = Modifier.align(Alignment.BottomStart).size(20.dp).border(2.dp, Color(0xFF3F8CFF), RoundedCornerShape(bottomStart = 6.dp)))
+                    Box(modifier = Modifier.align(Alignment.BottomEnd).size(20.dp).border(2.dp, Color(0xFF3F8CFF), RoundedCornerShape(bottomEnd = 6.dp)))
 
                     Text(
                         text = "TARGET: ${selectedTemplate!!.title.uppercase()}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = Color(0xFF3F8CFF),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
@@ -270,7 +329,6 @@ fun SingleScanView(viewModel: BrainViewModel) {
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
 
-                    // Integrated, sleek Feed Selector pill
                     Surface(
                         color = Color.Black.copy(alpha = 0.8f),
                         shape = RoundedCornerShape(8.dp),
@@ -285,8 +343,8 @@ fun SingleScanView(viewModel: BrainViewModel) {
                             Button(
                                 onClick = { useSimulationFallback = false },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (!useSimulationFallback) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    contentColor = if (!useSimulationFallback) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    containerColor = if (!useSimulationFallback) Color(0xFF3F8CFF) else Color.Transparent,
+                                    contentColor = if (!useSimulationFallback) Color.White else Color.Gray
                                 ),
                                 modifier = Modifier.height(26.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -299,8 +357,8 @@ fun SingleScanView(viewModel: BrainViewModel) {
                             Button(
                                 onClick = { useSimulationFallback = true },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (useSimulationFallback) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    contentColor = if (useSimulationFallback) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    containerColor = if (useSimulationFallback) Color(0xFF3F8CFF) else Color.Transparent,
+                                    contentColor = if (useSimulationFallback) Color.White else Color.Gray
                                 ),
                                 modifier = Modifier.height(26.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -322,7 +380,7 @@ fun SingleScanView(viewModel: BrainViewModel) {
                                 .offset(y = 180.dp * laserOffset)
                                 .background(
                                     Brush.horizontalGradient(
-                                        colors = listOf(Color.Transparent, MaterialTheme.colorScheme.primary, Color.Transparent)
+                                        colors = listOf(Color.Transparent, Color(0xFF3F8CFF), Color.Transparent)
                                     )
                                 )
                         )
@@ -344,7 +402,6 @@ fun SingleScanView(viewModel: BrainViewModel) {
             }
         }
 
-        // Capture trigger button
         Button(
             onClick = { selectedTemplate?.let { viewModel.startOcrScan(it) } },
             enabled = selectedTemplate != null && !isScanning,
@@ -353,32 +410,24 @@ fun SingleScanView(viewModel: BrainViewModel) {
                 .fillMaxWidth()
                 .height(48.dp)
                 .testTag("initiate_ocr_scan_button"),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F8CFF))
         ) {
             Icon(Icons.Default.DocumentScanner, contentDescription = "Scan", modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                "Capture & Process Document",
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Text("Capture & Process Document", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun LiveScrollIngestView(viewModel: BrainViewModel) {
+fun LiveScrollCaptureView(viewModel: BrainViewModel) {
     val ocrSimulator = remember { OcrSimulator() }
     val isScanning by viewModel.isScanning.collectAsState()
     val scanProgress by viewModel.scanProgress.collectAsState()
     val statusMessage by viewModel.scanningStatusMessage.collectAsState()
 
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
-    var useSimulationFallback by remember { mutableStateOf(true) }
-    var cameraInitError by remember { mutableStateOf<String?>(null) }
 
     val isContinuousActive by viewModel.isContinuousActive.collectAsState()
     val continuousSegments by viewModel.continuousSegments.collectAsState()
@@ -386,25 +435,15 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
     val continuousTitle by viewModel.continuousTitle.collectAsState()
     val continuousCategory by viewModel.continuousCategory.collectAsState()
 
-    var localTitleInput by remember { mutableStateOf("Jira & Confluence Scroll Ingest") }
+    var localTitleInput by remember { mutableStateOf("Jira & Confluence Scroll Ingest1") }
     var localCategoryInput by remember { mutableStateOf("Project Plans") }
 
     var activeScrollSessionIndex by remember { mutableStateOf(0) }
     var currentScrollFrameIndex by remember { mutableStateOf(0) }
     var showEvaluationPopup by remember { mutableStateOf(false) }
 
-    val infiniteTransition = rememberInfiniteTransition()
-    val laserOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
     if (!isContinuousActive) {
-        // --- Session Configuration form ---
+        // --- Ingestion Configuration Form ---
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -418,7 +457,7 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.PlayCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.PlayCircle, contentDescription = null, tint = Color(0xFF3F8CFF))
                     Text(
                         "Live Scrolling Work Ingest",
                         style = MaterialTheme.typography.titleMedium,
@@ -426,7 +465,7 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
                     )
                 }
                 Text(
-                    "Point your camera at a monitor, document, or spreadsheet, and scroll through natively. Athena compiles overlapping captured segments, filtering redundancies, to assemble a complete synchronized text block.",
+                    "Point camera or align your workspace feeds. Athena compiles overlapping captured segments, filters redundancies, to assemble a complete synchronized text block.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -460,7 +499,7 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F8CFF))
                 ) {
                     Icon(Icons.Default.FiberManualRecord, contentDescription = null, tint = Color.Red, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
@@ -469,242 +508,65 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
             }
         }
     } else {
-        // --- Active Scrolling Session view ---
+        // --- Redesigned Active Session Layout (Matches Screenshot 1 exactly) ---
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Status bar
+            // Active Session Title (In blue, matches Image 1)
+            Text(
+                text = "Active Session: $continuousTitle",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFF3F8CFF)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Dynamic Simulated Feed Selector (Allows user to select which data feed they scroll through!)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "ACTIVE SESSION: ${continuousTitle.uppercase()}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Category: $continuousCategory",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Surface(
-                    color = Color.Red.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(modifier = Modifier.size(8.dp).background(Color.Red, CircleShape))
-                        Text("RECORDING", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Red)
-                    }
-                }
-            }
-
-            // High-fidelity Viewport with embedded controls
-            Box(
                 modifier = Modifier
-                    .height(200.dp)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black)
-                    .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
+                    .background(Color(0xFF13141F), RoundedCornerShape(12.dp))
+                    .padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (cameraPermissionState.status.isGranted && !useSimulationFallback && cameraInitError == null) {
-                    CameraPreviewView(modifier = Modifier.fillMaxSize())
-                } else {
-                    // Simulated Desktop Screen inside viewport
-                    val activeStream = ocrSimulator.scrollSessions[activeScrollSessionIndex]
-                    val activeSegment = activeStream[currentScrollFrameIndex]
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color(0xFF161616))
-                            .padding(10.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Embedded feed switch directly in simulated header bar
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFF262626), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Box(modifier = Modifier.size(6.dp).background(Color.Red, CircleShape))
-                                Box(modifier = Modifier.size(6.dp).background(Color.Yellow, CircleShape))
-                                Box(modifier = Modifier.size(6.dp).background(Color.Green, CircleShape))
-                            }
-                            
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color.Black.copy(alpha = 0.4f))
-                                    .padding(2.dp),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = "Jira Feed",
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (activeScrollSessionIndex == 0) Color.White else Color.Gray,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(if (activeScrollSessionIndex == 0) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                        .clickable {
-                                            activeScrollSessionIndex = 0
-                                            currentScrollFrameIndex = 0
-                                        }
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                )
-                                Text(
-                                    text = "GitHub Feed",
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (activeScrollSessionIndex == 1) Color.White else Color.Gray,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(if (activeScrollSessionIndex == 1) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                        .clickable {
-                                            activeScrollSessionIndex = 1
-                                            currentScrollFrameIndex = 0
-                                        }
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                )
-                            }
+                Text(
+                    text = "FEED SOURCE:",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (activeScrollSessionIndex == 0) Color(0xFF2C2D3B) else Color.Transparent)
+                        .clickable {
+                            activeScrollSessionIndex = 0
+                            currentScrollFrameIndex = 0
                         }
-
-                        // Simulated text viewport content
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .padding(vertical = 4.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F0F)),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-                        ) {
-                            Column(modifier = Modifier.padding(8.dp)) {
-                                Text(
-                                    text = activeSegment.title,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = activeSegment.text,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color.LightGray,
-                                    fontFamily = FontFamily.Monospace,
-                                    maxLines = 4,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "SCREEN POSITION: PAGE ${currentScrollFrameIndex + 1}/${activeStream.size}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 8.sp
-                            )
-                        }
-                    }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text("Jira Feed", fontSize = 11.sp, color = if (activeScrollSessionIndex == 0) Color.White else Color.Gray, fontWeight = FontWeight.Bold)
                 }
-
-                // HUD visual overlays
-                Box(modifier = Modifier.fillMaxSize().padding(10.dp)) {
-                    Box(modifier = Modifier.align(Alignment.TopStart).size(14.dp).border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(topStart = 4.dp)))
-                    Box(modifier = Modifier.align(Alignment.TopEnd).size(14.dp).border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(topEnd = 4.dp)))
-                    Box(modifier = Modifier.align(Alignment.BottomStart).size(14.dp).border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(bottomStart = 4.dp)))
-                    Box(modifier = Modifier.align(Alignment.BottomEnd).size(14.dp).border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(bottomEnd = 4.dp)))
-
-                    // Camera/Simulator switch inside viewport HUD
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.75f),
-                        shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(2.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PhotoCamera,
-                                contentDescription = null,
-                                tint = if (!useSimulationFallback) MaterialTheme.colorScheme.primary else Color.Gray,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(if (!useSimulationFallback) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                    .clickable { useSimulationFallback = false }
-                                    .padding(3.dp)
-                            )
-                            Icon(
-                                imageVector = Icons.Default.Monitor,
-                                contentDescription = null,
-                                tint = if (useSimulationFallback) MaterialTheme.colorScheme.primary else Color.Gray,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(if (useSimulationFallback) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                    .clickable { useSimulationFallback = true }
-                                    .padding(3.dp)
-                            )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (activeScrollSessionIndex == 1) Color(0xFF2C2D3B) else Color.Transparent)
+                        .clickable {
+                            activeScrollSessionIndex = 1
+                            currentScrollFrameIndex = 0
                         }
-                    }
-
-                    if (isScanning) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(2.dp)
-                                .align(Alignment.TopCenter)
-                                .offset(y = 160.dp * laserOffset)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(Color.Transparent, MaterialTheme.colorScheme.primary, Color.Transparent)
-                                    )
-                                )
-                        )
-                    }
-                }
-
-                if (!cameraPermissionState.status.isGranted && !useSimulationFallback) {
-                    PermissionOverlay(
-                        cameraPermissionState = cameraPermissionState,
-                        onUseSimulation = { useSimulationFallback = true }
-                    )
-                }
-
-                if (isScanning) {
-                    ScanningProgressOverlay(statusMessage = statusMessage, scanProgress = scanProgress)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text("GitHub Feed", fontSize = 11.sp, color = if (activeScrollSessionIndex == 1) Color.White else Color.Gray, fontWeight = FontWeight.Bold)
                 }
             }
 
-            // Scroll / Capture trigger
+            // Big Blue Trigger Button
             Button(
                 onClick = {
                     val activeStream = ocrSimulator.scrollSessions[activeScrollSessionIndex]
@@ -712,167 +574,227 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
                     viewModel.captureContinuousSegment(activeSegment.text)
                     currentScrollFrameIndex = (currentScrollFrameIndex + 1) % activeStream.size
                 },
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F8CFF)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    .height(56.dp)
             ) {
-                Icon(Icons.Default.ArrowDownward, contentDescription = "Scroll", modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Scroll Screen & Capture Overlapping Frame", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Icon(Icons.Default.ArrowDownward, contentDescription = "Scroll", tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("Scroll Screen & Capture Overlapping Frame", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
             }
 
-            // Real-time console status
-            Text(
-                text = "Console Logs: $continuousStatus",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Green,
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            // Console Window Card "LIVE ATHENA PIPELINE CONSOLE"
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Black, RoundedCornerShape(4.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
-
-            // Horizontal Frame list view (Directly visible, resolves "preview missing")
-            Text(
-                text = "Captured Segments History (${continuousSegments.size}):",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            var savedSeparateFrames by remember { mutableStateOf(setOf<Int>()) }
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                    .height(130.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF07080D)),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
             ) {
-                if (continuousSegments.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "LIVE ATHENA PIPELINE CONSOLE",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF8C96A8),
+                                letterSpacing = 1.sp
+                            )
+                        )
+                        Surface(
+                            color = Color.Red.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp)
                         ) {
-                            Box(modifier = Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.Center) {
-                                Text("No captured segments yet. Point camera or simulator at a feed and tap Scroll & Capture.", fontSize = 11.sp, color = Color.Gray, textAlign = TextAlign.Center)
-                            }
-                        }
-                    }
-                } else {
-                    itemsIndexed(continuousSegments) { idx, segmentText ->
-                        val frameNum = idx + 1
-                        val isSaved = savedSeparateFrames.contains(frameNum)
-                        Card(
-                            modifier = Modifier
-                                .width(180.dp)
-                                .height(95.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(6.dp),
-                                verticalArrangement = Arrangement.SpaceBetween
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Segment #$frameNum",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            viewModel.saveSingleFrameSeparately(frameNum, segmentText)
-                                            savedSeparateFrames = savedSeparateFrames + frameNum
-                                        },
-                                        enabled = !isSaved,
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isSaved) Icons.Default.CheckCircle else Icons.Default.SaveAlt,
-                                            contentDescription = "Save segment separately",
-                                            tint = if (isSaved) Color.Green else MaterialTheme.colorScheme.secondary,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = segmentText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 9.sp,
-                                    color = Color.LightGray,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Box(modifier = Modifier.size(6.dp).background(Color.Red, CircleShape))
+                                Text("RECORDING", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Red)
                             }
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val logLines = remember(continuousSegments.size, continuousStatus) {
+                            val list = mutableListOf<String>()
+                            if (continuousSegments.isEmpty()) {
+                                list.add("• Continuous scan session initialized. Ready for feed...")
+                                list.add("• [System] Standby mode active. Press 'Scroll Screen' above to ingest.")
+                            } else {
+                                list.add("• Frame #${continuousSegments.size} Captured! Detected text segments. Continue scrolling...")
+                                if (continuousSegments.size > 1) {
+                                    list.add("• Comparing Jaccard index sliding overlap window... Match > 85%")
+                                    list.add("• Pruned duplicate strings from previous frame segment buffer.")
+                                }
+                                list.add("• [Frame #1] Extracted segment text into second brain merge buffer. Status: OK.")
+                            }
+                            list
+                        }
+                        logLines.forEach { line ->
+                            Text(
+                                text = line,
+                                color = Color(0xFF00FF66),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
             }
 
-            // Primary control actions at bottom
+            // Side-by-Side Action Buttons (Discard Session & Merge & Sync)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(
-                    onClick = { viewModel.cancelContinuousSession() },
+                // Discard Session
+                Card(
                     modifier = Modifier
                         .weight(1f)
-                        .height(42.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        .height(56.dp)
+                        .clickable { viewModel.cancelContinuousSession() },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF13141F)),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
                 ) {
-                    Icon(Icons.Default.Cancel, contentDescription = "Discard", modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Discard", fontSize = 11.sp, maxLines = 1)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Color(0xFF3F8CFF), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Discard Session",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Column {
+                            Text("Discard", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3F8CFF))
+                            Text("Session", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3F8CFF))
+                        }
+                    }
                 }
 
-                Button(
-                    onClick = { showEvaluationPopup = true },
-                    enabled = continuousSegments.isNotEmpty(),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                ) {
-                    Icon(Icons.Default.Visibility, contentDescription = "Preview", modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Preview", fontSize = 11.sp, maxLines = 1)
-                }
-
-                Button(
-                    onClick = { viewModel.stopAndProcessContinuousSession() },
-                    enabled = continuousSegments.isNotEmpty(),
+                // Merge & Sync to AI Note
+                Card(
                     modifier = Modifier
                         .weight(1.3f)
-                        .height(42.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                        .height(56.dp)
+                        .clickable(enabled = continuousSegments.isNotEmpty()) {
+                            viewModel.stopAndProcessContinuousSession()
+                        },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (continuousSegments.isNotEmpty()) Color(0xFF00C853) else Color(0xFF00C853).copy(alpha = 0.4f)
+                    )
                 ) {
-                    Icon(Icons.Default.CloudSync, contentDescription = "AI Sync", modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("AI Sync", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudSync,
+                            contentDescription = "Merge & Sync to AI Note",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column {
+                            Text("Merge & Sync to", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("AI Note", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+            }
+
+            // Bottom Stitched Evaluation & Preview Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        if (continuousSegments.isNotEmpty()) {
+                            showEvaluationPopup = true
+                        }
+                    },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF13141F)),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RadioButtonChecked,
+                            contentDescription = null,
+                            tint = Color(0xFF00C853),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "Stitched Evaluation & Preview",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF00C853)
+                        )
+                    }
+                    Text(
+                        text = "Evaluate and verify the aggregated continuous text buffer before running the final structured AI analysis.",
+                        fontSize = 11.sp,
+                        color = Color.LightGray.copy(alpha = 0.8f),
+                        lineHeight = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { if (continuousSegments.isEmpty()) 0f else 1f },
+                        color = Color(0xFF00C853),
+                        trackColor = Color.White.copy(alpha = 0.1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                    )
                 }
             }
         }
     }
 
-    // Consolidated Session Preview dialog
     if (showEvaluationPopup) {
         val deduplicatedText = viewModel.getDeduplicatedContinuousText()
 
@@ -882,7 +804,7 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
                 Icon(
                     imageVector = Icons.Default.Pageview,
                     contentDescription = "Review",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Color(0xFF3F8CFF),
                     modifier = Modifier.size(28.dp)
                 )
             },
@@ -901,7 +823,7 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
                     Text(
                         text = "Total captured segments: ${continuousSegments.size}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = Color(0xFF3F8CFF),
                         fontWeight = FontWeight.Bold
                     )
 
@@ -953,7 +875,7 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
                             showEvaluationPopup = false
                             viewModel.saveRawCapturedNote()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.weight(1.2f)
                     ) {
@@ -966,7 +888,7 @@ fun LiveScrollIngestView(viewModel: BrainViewModel) {
                             showEvaluationPopup = false
                             viewModel.stopAndProcessContinuousSession()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F8CFF)),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.weight(1.3f)
                     ) {
@@ -1079,25 +1001,16 @@ fun DirectInputView(viewModel: BrainViewModel) {
                     .fillMaxWidth()
                     .height(48.dp)
                     .testTag("save_manual_note_button"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F8CFF))
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("AI Processing Ingestion...")
                 } else {
                     Icon(Icons.Default.SaveAlt, contentDescription = "Save")
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "Analyze & Sync to Second Brain",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text("Analyze & Sync to Second Brain", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -1124,7 +1037,7 @@ fun PermissionOverlay(
             Icon(
                 Icons.Default.PhotoCamera,
                 contentDescription = "Permission Required",
-                tint = MaterialTheme.colorScheme.primary,
+                tint = Color(0xFF3F8CFF),
                 modifier = Modifier.size(44.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -1148,17 +1061,13 @@ fun PermissionOverlay(
             ) {
                 Button(
                     onClick = { cameraPermissionState.launchPermissionRequest() },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3F8CFF))
                 ) {
                     Text("Grant Permission")
                 }
                 OutlinedButton(
                     onClick = onUseSimulation,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.White
-                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
                 ) {
                     Text("Use Simulation")
@@ -1178,7 +1087,7 @@ fun SelectTemplatePrompt() {
         Icon(
             Icons.Default.CenterFocusWeak,
             contentDescription = "No template selected",
-            tint = MaterialTheme.colorScheme.primary,
+            tint = Color(0xFF3F8CFF),
             modifier = Modifier.size(56.dp)
         )
         Spacer(modifier = Modifier.height(10.dp))
@@ -1211,7 +1120,7 @@ fun ScanningProgressOverlay(statusMessage: String, scanProgress: Float) {
             modifier = Modifier.padding(24.dp)
         ) {
             CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.primary,
+                color = Color(0xFF3F8CFF),
                 modifier = Modifier.size(48.dp)
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -1219,7 +1128,7 @@ fun ScanningProgressOverlay(statusMessage: String, scanProgress: Float) {
                 text = "EXTRACTING KNOWLEDGE...",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = Color(0xFF3F8CFF)
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
@@ -1235,7 +1144,7 @@ fun ScanningProgressOverlay(statusMessage: String, scanProgress: Float) {
                     .fillMaxWidth(0.8f)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
-                color = MaterialTheme.colorScheme.primary,
+                color = Color(0xFF3F8CFF),
                 trackColor = Color.White.copy(alpha = 0.2f)
             )
         }
