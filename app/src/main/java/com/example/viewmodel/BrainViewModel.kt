@@ -436,6 +436,63 @@ class BrainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun saveRawCapturedNote() {
+        if (!isContinuousActive.value) return
+        val segments = continuousSegments.value
+        if (segments.isEmpty()) {
+            cancelContinuousSession()
+            return
+        }
+
+        viewModelScope.launch {
+            val deduplicatedText = getDeduplicatedContinuousText()
+            val newDocId = repository.insertDocument(
+                CapturedDocument(
+                    title = "Raw Ingest: ${continuousTitle.value}",
+                    rawText = deduplicatedText,
+                    markdown = "# Raw Ingested Note\n\n$deduplicatedText",
+                    structuredJson = "",
+                    imagePath = "continuous_capture",
+                    category = continuousCategory.value,
+                    summary = "Raw continuous text capture. Contains ${deduplicatedText.length} characters.",
+                    tags = "Raw, Continuous Ingest",
+                    actionItems = "[]",
+                    flashcards = "[]"
+                )
+            )
+
+            // Cleanup
+            isContinuousActive.value = false
+            continuousSegments.value = emptyList()
+
+            val newlyCreatedDoc = repository.getDocumentById(newDocId)
+            if (newlyCreatedDoc != null) {
+                selectedDoc.value = newlyCreatedDoc
+                activeTab.value = "library"
+            }
+        }
+    }
+
+    fun saveSingleFrameSeparately(frameIndex: Int, frameText: String) {
+        viewModelScope.launch {
+            val newDocId = repository.insertDocument(
+                CapturedDocument(
+                    title = "Frame #$frameIndex: ${continuousTitle.value}",
+                    rawText = frameText,
+                    markdown = "# Frame #$frameIndex Captured Note\n\n$frameText",
+                    structuredJson = "",
+                    imagePath = "continuous_capture_frame",
+                    category = continuousCategory.value,
+                    summary = "Single captured frame #$frameIndex from scrolling capture stream.",
+                    tags = "Separate Frame, Ingest",
+                    actionItems = "[]",
+                    flashcards = "[]"
+                )
+            )
+            continuousStatus.value = "Frame #$frameIndex saved separately as document #$newDocId!"
+        }
+    }
+
     fun getDeduplicatedContinuousText(): String {
         return deduplicateText(continuousSegments.value)
     }

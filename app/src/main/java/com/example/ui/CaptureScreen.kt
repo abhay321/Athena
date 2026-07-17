@@ -107,7 +107,7 @@ fun OcrScannerView(viewModel: BrainViewModel) {
     val statusMessage by viewModel.scanningStatusMessage.collectAsState()
 
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
-    var useSimulationFallback by remember { mutableStateOf(false) }
+    var useSimulationFallback by remember { mutableStateOf(true) }
     var cameraInitError by remember { mutableStateOf<String?>(null) }
 
     // Continuous Ingest States
@@ -161,9 +161,59 @@ fun OcrScannerView(viewModel: BrainViewModel) {
             )
         }
 
-        if (scanSubMode == "single") {
-            // --- SINGLE SNAPSHOT SCANNER ---
+        // Scan Feed Source Switcher
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
+                text = "Feed Source:",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { useSimulationFallback = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (!useSimulationFallback) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        contentColor = if (!useSimulationFallback) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Physical Camera", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = { useSimulationFallback = true },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (useSimulationFallback) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        contentColor = if (useSimulationFallback) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Icon(Icons.Default.Monitor, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Simulated Desktop", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        if (scanSubMode == "single") {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // --- SINGLE SNAPSHOT SCANNER ---
+                Text(
                 text = "Select Document to Scan:",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
@@ -346,10 +396,16 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
-
+        }
         } else {
-            // --- LIVE CONTINUOUS SCROLL-CAPTURE SCANNER ---
-            if (!isContinuousActive) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // --- LIVE CONTINUOUS SCROLL-CAPTURE SCANNER ---
+                if (!isContinuousActive) {
                 // Session Configuration view
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -427,7 +483,7 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                 // Viewport representation
                 Box(
                     modifier = Modifier
-                        .weight(1f)
+                        .height(260.dp)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color.Black)
@@ -675,24 +731,29 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-                        LazyColumn(
+                        Column(
                             verticalArrangement = Arrangement.spacedBy(2.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            item {
+                            Text(
+                                text = "• $continuousStatus",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Green,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            // Display the last 2 segment log events to fit perfectly within the 110.dp Card with no nesting scroll
+                            val lastSegments = continuousSegments.takeLast(2)
+                            lastSegments.forEachIndexed { index, _ ->
+                                val frameNum = continuousSegments.size - lastSegments.size + index + 1
                                 Text(
-                                    text = "• $continuousStatus",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.Green,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                            itemsIndexed(continuousSegments) { idx, segment ->
-                                Text(
-                                    text = "• [Frame #${idx + 1}] Extracted segment text into second brain merge buffer. Status: OK.",
+                                    text = "• [Frame #$frameNum] Extracted segment text into second brain merge buffer. Status: OK.",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White.copy(alpha = 0.7f),
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -702,7 +763,7 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                 // End Session buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = { viewModel.cancelContinuousSession() },
@@ -713,21 +774,35 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     ) {
                         Icon(Icons.Default.Cancel, contentDescription = "Cancel")
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Discard Session")
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("Discard", fontSize = 11.sp, maxLines = 1)
+                    }
+                    Button(
+                        onClick = { viewModel.saveRawCapturedNote() },
+                        enabled = continuousSegments.isNotEmpty(),
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .height(48.dp)
+                            .testTag("save_raw_note_button"),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = "Save Raw", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("Save Raw", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
                     Button(
                         onClick = { viewModel.stopAndProcessContinuousSession() },
                         enabled = continuousSegments.isNotEmpty(),
                         modifier = Modifier
-                            .weight(1.5f)
+                            .weight(1.3f)
                             .height(48.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                     ) {
-                        Icon(Icons.Default.CloudSync, contentDescription = "Process")
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Merge & Sync to AI Note", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.CloudSync, contentDescription = "Process", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("AI Sync", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
                 }
 
@@ -791,6 +866,7 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                     }
                 }
             }
+            }
         }
     }
 
@@ -803,6 +879,9 @@ fun OcrScannerView(viewModel: BrainViewModel) {
         } else {
             0
         }
+
+        var previewSubTab by remember { mutableStateOf("unified") } // "unified" or "separate"
+        var savedSeparateFrames by remember { mutableStateOf(setOf<Int>()) }
 
         AlertDialog(
             onDismissRequest = { showEvaluationPopup = false },
@@ -825,7 +904,7 @@ fun OcrScannerView(viewModel: BrainViewModel) {
             },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     // Statistics metrics badge
@@ -833,7 +912,7 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                            .padding(8.dp),
+                            .padding(6.dp),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -850,37 +929,146 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                         }
                     }
 
-                    Text(
-                        text = "Aggregated & Deduplicated Output Buffer:",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    // Scrollable container for the text preview
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(240.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.Black),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                        shape = RoundedCornerShape(8.dp)
+                    // Tab Selector inside Preview Popup
+                    TabRow(
+                        selectedTabIndex = if (previewSubTab == "unified") 0 else 1,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
                     ) {
-                        Box(
+                        Tab(
+                            selected = previewSubTab == "unified",
+                            onClick = { previewSubTab = "unified" },
+                            text = { Text("Unified Note", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                        )
+                        Tab(
+                            selected = previewSubTab == "separate",
+                            onClick = { previewSubTab = "separate" },
+                            text = { Text("Separate Frames (${continuousSegments.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                        )
+                    }
+
+                    if (previewSubTab == "unified") {
+                        Text(
+                            text = "Aggregated & Deduplicated Output Buffer:",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        // Scrollable container for the unified text preview
+                        Card(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(10.dp)
+                                .fillMaxWidth()
+                                .height(180.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.Black),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(8.dp)
                         ) {
-                            val scrollState = rememberScrollState()
-                            Text(
-                                text = deduplicatedText.ifEmpty { "No text content has been captured yet. Use the scrolling viewport above to capture overlap frames." },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (deduplicatedText.isEmpty()) Color.Gray else Color.White,
-                                fontFamily = FontFamily.Monospace,
+                            Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .verticalScroll(scrollState)
-                            )
+                                    .padding(10.dp)
+                            ) {
+                                val scrollState = rememberScrollState()
+                                Text(
+                                    text = deduplicatedText.ifEmpty { "No text content has been captured yet. Use the scrolling viewport above to capture overlap frames." },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (deduplicatedText.isEmpty()) Color.Gray else Color.White,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(scrollState)
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Individual Captured Frames (Separated):",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (continuousSegments.isEmpty()) {
+                                Text(
+                                    text = "No segments captured yet.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            } else {
+                                continuousSegments.forEachIndexed { idx, segmentText ->
+                                    val frameNum = idx + 1
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Frame #$frameNum",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                val isSaved = savedSeparateFrames.contains(frameNum)
+                                                Button(
+                                                    onClick = {
+                                                        viewModel.saveSingleFrameSeparately(frameNum, segmentText)
+                                                        savedSeparateFrames = savedSeparateFrames + frameNum
+                                                    },
+                                                    enabled = !isSaved,
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = MaterialTheme.colorScheme.secondary,
+                                                        contentColor = Color.White
+                                                    ),
+                                                    modifier = Modifier.height(26.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = if (isSaved) "Saved ✓" else "Save Separately",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(Color.Black, RoundedCornerShape(4.dp))
+                                                    .padding(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = segmentText,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color.LightGray,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    maxLines = 4,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     
@@ -892,26 +1080,45 @@ fun OcrScannerView(viewModel: BrainViewModel) {
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showEvaluationPopup = false
-                        viewModel.stopAndProcessContinuousSession()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                    shape = RoundedCornerShape(8.dp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Approve & Sync", fontWeight = FontWeight.Bold)
+                    TextButton(
+                        onClick = { showEvaluationPopup = false },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancel", maxLines = 1)
+                    }
+                    Button(
+                        onClick = {
+                            showEvaluationPopup = false
+                            viewModel.saveRawCapturedNote()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1.3f)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("Save Raw", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                    Button(
+                        onClick = {
+                            showEvaluationPopup = false
+                            viewModel.stopAndProcessContinuousSession()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1.3f)
+                    ) {
+                        Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("AI Sync", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(
-                    onClick = { showEvaluationPopup = false }
-                ) {
-                    Text("Close Preview")
-                }
-            },
+            dismissButton = null,
             shape = RoundedCornerShape(16.dp),
             containerColor = MaterialTheme.colorScheme.surface
         )
